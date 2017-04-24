@@ -1,25 +1,30 @@
+# -*- coding: utf-8 -*-
 """Validate bitcoin/altcoin addresses
 
 Copied from:
 http://rosettacode.org/wiki/Bitcoin/address_validation#Python
 """
-
+from __future__ import absolute_import, print_function
+from builtins import chr
+from builtins import range
 import string
+import struct
 from hashlib import sha256
 
 digits58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
 
 def _bytes_to_long(bytestring, byteorder):
     """Convert a bytestring to a long
 
     For use in python version prior to 3.2
     """
-    result = []
     if byteorder == 'little':
         result = (v << i * 8 for (i, v) in enumerate(bytestring))
     else:
         result = (v << i * 8 for (i, v) in enumerate(reversed(bytestring)))
     return sum(result)
+
 
 def _long_to_bytes(n, length, byteorder):
     """Convert a long to a bytestring
@@ -29,10 +34,11 @@ def _long_to_bytes(n, length, byteorder):
     http://bugs.python.org/issue16580#msg177208
     """
     if byteorder == 'little':
-        indexes = range(length)
+        indexes = list(range(length))
     else:
-        indexes = reversed(range(length))
+        indexes = reversed(list(range(length)))
     return bytearray((n >> i * 8) & 0xff for i in indexes)
+
 
 def decode_base58(bitcoin_address, length):
     """Decode a base58 encoded address
@@ -52,6 +58,7 @@ def decode_base58(bitcoin_address, length):
     except AttributeError:
         # Python version < 3.2
         return _long_to_bytes(n, length, 'big')
+
 
 def encode_base58(bytestring):
     """Encode a bytestring to a base58 encoded string
@@ -75,6 +82,7 @@ def encode_base58(bytestring):
         (n, rest) = divmod(n, 58)
     return zeros * '1' + result[::-1]  # reverse string
 
+
 def validate(bitcoin_address, magicbyte=0):
     """Check the integrity of a bitcoin address
 
@@ -85,18 +93,18 @@ def validate(bitcoin_address, magicbyte=0):
     False
     """
     if isinstance(magicbyte, int):
-        magicbyte = (magicbyte,)
+        magicbyte = [magicbyte]
     clen = len(bitcoin_address)
-    if clen < 27 or clen > 35: # XXX or 34?
+    if clen < 27 or clen > 35:
         return False
-    allowed_first = tuple(string.digits)
     try:
         bcbytes = decode_base58(bitcoin_address, 25)
     except ValueError:
         return False
     # Check magic byte (for other altcoins, fix by Frederico Reiven)
+    # noinspection PyTypeChecker
     for mb in magicbyte:
-        if bcbytes.startswith(chr(int(mb))):
+        if bcbytes.startswith(struct.pack('>b', mb)):
             break
     else:
         return False
